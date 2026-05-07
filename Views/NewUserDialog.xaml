@@ -1,0 +1,21 @@
+<Window x:Class="CreativeWrites.Views.NewUserDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Create Profile" Height="220" Width="360"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
+    <StackPanel Margin="20">
+        <TextBlock Text="Username" FontWeight="SemiBold" Margin="0,0,0,4"/>
+        <TextBox x:Name="UsernameBox" Style="{StaticResource InputBox}" Margin="0,0,0,12"/>
+
+        <TextBlock Text="Bio (optional)" FontWeight="SemiBold" Margin="0,0,0,4"/>
+        <TextBox x:Name="BioBox" Style="{StaticResource InputBox}"
+                 AcceptsReturn="True" Height="50" Margin="0,0,0,16"/>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Cancel" Padding="12,6" Margin="0,0,8,0"
+                    IsCancel="True"/>
+            <Button Content="Create" Style="{StaticResource PrimaryButton}"
+                    IsDefault="True" Click="OnCreate"/>
+        </StackPanel>
+    </StackPanel>
+</Window>
