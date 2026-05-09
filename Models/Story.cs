@@ -9,15 +9,40 @@ namespace CreativeWrites.Models
     public class Story : INotifyPropertyChanged
     {
         private int _likeCount;
+        private string _title = string.Empty;
+        private string _body = string.Empty;
+        private Genre _genre = Genre.Fantasy;
+        private DateTime _lastEditedAt = DateTime.Now;
 
         public string StoryId { get; set; } = Guid.NewGuid().ToString();
         public string AuthorId { get; set; } = string.Empty;
         public string AuthorName { get; set; } = string.Empty;
-        public string Title { get; set; } = string.Empty;
-        public string Body { get; set; } = string.Empty;
-        public Genre Genre { get; set; } = Genre.Fantasy;
+
+        public string Title
+        {
+            get => _title;
+            set { if (_title != value) { _title = value; OnPropertyChanged(); } }
+        }
+
+        public string Body
+        {
+            get => _body;
+            set { if (_body != value) { _body = value; OnPropertyChanged(); } }
+        }
+
+        public Genre Genre
+        {
+            get => _genre;
+            set { if (_genre != value) { _genre = value; OnPropertyChanged(); } }
+        }
+
         public DateTime PublishedAt { get; set; } = DateTime.Now;
-        public DateTime LastEditedAt { get; set; } = DateTime.Now;
+
+        public DateTime LastEditedAt
+        {
+            get => _lastEditedAt;
+            set { if (_lastEditedAt != value) { _lastEditedAt = value; OnPropertyChanged(); } }
+        }
 
         public int LikeCount
         {

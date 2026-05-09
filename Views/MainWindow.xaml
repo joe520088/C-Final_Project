@@ -3,11 +3,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:CreativeWrites.ViewModels"
         xmlns:models="clr-namespace:CreativeWrites.Models"
+        xmlns:conv="clr-namespace:CreativeWrites.Converters"
         Title="Creative Writes" Height="750" Width="1100" MinWidth="900" MinHeight="600"
         Background="#F5F4F0">
 
     <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+        <conv:EqualityToVisibilityMultiConverter x:Key="OwnerToVisibility"/>
     </Window.Resources>
 
     <Window.DataContext>
@@ -64,24 +66,8 @@
                 <TextBlock Text="Filter by Genre" Foreground="#AAAACC" FontSize="11" Margin="0,0,0,6"/>
                 <ComboBox ItemsSource="{Binding GenreFilters}"
                           SelectedItem="{Binding SelectedGenreFilter}"
-                          Margin="0,0,0,8">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock>
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="{Binding}"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding}" Value="{x:Null}">
-                                                <Setter Property="Text" Value="All Genres"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
+                          DisplayMemberPath="Name"
+                          Margin="0,0,0,8"/>
 
                 <TextBlock Text="Search" Foreground="#AAAACC" FontSize="11" Margin="0,0,0,4"/>
                 <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
@@ -243,29 +229,97 @@
                                 </Style>
                             </StackPanel.Style>
 
-                            <TextBlock Text="{Binding SelectedStory.Title}" FontSize="17"
-                                       FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                            <!-- ── Story READ view ── -->
+                            <StackPanel Visibility="{Binding IsEditingStory, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
 
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                <TextBlock Text="{Binding SelectedStory.AuthorName}"
-                                           Foreground="#888888" FontSize="12"/>
-                                <TextBlock Text=" · " Foreground="#888888" FontSize="12"/>
-                                <TextBlock Text="{Binding SelectedStory.Genre}"
-                                           Foreground="#E8865A" FontSize="12" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding SelectedStory.Title}" FontSize="17"
+                                           FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,6"/>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <TextBlock Text="{Binding SelectedStory.AuthorName}"
+                                               Foreground="#888888" FontSize="12"/>
+                                    <TextBlock Text=" · " Foreground="#888888" FontSize="12"/>
+                                    <TextBlock Text="{Binding SelectedStory.Genre}"
+                                               Foreground="#E8865A" FontSize="12" FontWeight="SemiBold"/>
+                                </StackPanel>
+
+                                <TextBlock Text="{Binding SelectedStory.Body}" TextWrapping="Wrap"
+                                           FontSize="13" Foreground="#333333" Margin="0,0,0,12"/>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                    <Button Click="OnLikeStory" Foreground="White" Padding="12,6"
+                                            BorderThickness="0" Cursor="Hand" Margin="0,0,8,0">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Content" Value="♥ Like"/>
+                                                <Setter Property="Background" Value="#E8865A"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding HasLikedSelectedStory}" Value="True">
+                                                        <Setter Property="Content" Value="♥ Liked"/>
+                                                        <Setter Property="Background" Value="#C0392B"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+
+                                    <Button Content="Edit" Command="{Binding StartEditStoryCommand}"
+                                            Background="#3B3F8C" Foreground="White" Padding="10,5"
+                                            BorderThickness="0" Cursor="Hand" Margin="0,0,8,0">
+                                        <Button.Visibility>
+                                            <MultiBinding Converter="{StaticResource OwnerToVisibility}">
+                                                <Binding Path="SelectedStory.AuthorId"/>
+                                                <Binding Path="ActiveUser.UserId"/>
+                                            </MultiBinding>
+                                        </Button.Visibility>
+                                    </Button>
+
+                                    <Button Content="Delete Story" Click="OnDeleteStory"
+                                            Background="#C0392B" Foreground="White" Padding="10,5"
+                                            BorderThickness="0" Cursor="Hand">
+                                        <Button.Visibility>
+                                            <MultiBinding Converter="{StaticResource OwnerToVisibility}">
+                                                <Binding Path="SelectedStory.AuthorId"/>
+                                                <Binding Path="ActiveUser.UserId"/>
+                                            </MultiBinding>
+                                        </Button.Visibility>
+                                    </Button>
+                                </StackPanel>
                             </StackPanel>
 
-                            <TextBlock Text="{Binding SelectedStory.Body}" TextWrapping="Wrap"
-                                       FontSize="13" Foreground="#333333" Margin="0,0,0,12"/>
+                            <!-- ── Story EDIT view ── -->
+                            <StackPanel Visibility="{Binding IsEditingStory, Converter={StaticResource BoolToVisibility}}"
+                                        Margin="0,0,0,16">
 
-                            <Button Content="♥ Like" Click="OnLikeStory"
-                                    Background="#E8865A" Foreground="White" Padding="12,6"
-                                    BorderThickness="0" Cursor="Hand"
-                                    HorizontalAlignment="Left" Margin="0,0,0,8"/>
+                                <TextBlock Text="Edit Story" FontSize="16" FontWeight="Bold"
+                                           Foreground="#3B3F8C" Margin="0,0,0,12"/>
 
-                            <Button Content="Delete Story" Click="OnDeleteStory"
-                                    Background="#C0392B" Foreground="White" Padding="10,5"
-                                    BorderThickness="0" Cursor="Hand"
-                                    HorizontalAlignment="Left" Margin="0,0,0,16"/>
+                                <TextBlock Text="Title" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                <TextBox Text="{Binding EditTitleDraft, UpdateSourceTrigger=PropertyChanged}"
+                                         Padding="8,5" BorderBrush="#CCCCCC" BorderThickness="1"
+                                         FontSize="13" Margin="0,0,0,10"/>
+
+                                <TextBlock Text="Genre" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                <ComboBox SelectedItem="{Binding EditGenreDraft}"
+                                          ItemsSource="{Binding Source={x:Static models:GenreValues.All}}"
+                                          Margin="0,0,0,10"/>
+
+                                <TextBlock Text="Body" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                <TextBox Text="{Binding EditBodyDraft, UpdateSourceTrigger=PropertyChanged}"
+                                         Padding="8,5" BorderBrush="#CCCCCC" BorderThickness="1"
+                                         AcceptsReturn="True" TextWrapping="Wrap"
+                                         MinHeight="180" VerticalScrollBarVisibility="Auto"
+                                         FontSize="13" Margin="0,0,0,12"/>
+
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="Save" Command="{Binding SaveEditStoryCommand}"
+                                            Background="#3B3F8C" Foreground="White" Padding="12,6"
+                                            BorderThickness="0" Cursor="Hand" Margin="0,0,8,0"/>
+                                    <Button Content="Cancel" Command="{Binding CancelEditStoryCommand}"
+                                            Background="#888888" Foreground="White" Padding="12,6"
+                                            BorderThickness="0" Cursor="Hand"/>
+                                </StackPanel>
+                            </StackPanel>
 
                             <TextBlock Text="Comments" FontWeight="Bold" FontSize="14" Margin="0,0,0,8"/>
 
@@ -278,14 +332,57 @@
                                             <StackPanel>
                                                 <TextBlock Text="{Binding AuthorName}"
                                                            FontWeight="SemiBold" FontSize="12"/>
-                                                <TextBlock Text="{Binding Body}" TextWrapping="Wrap"
-                                                           FontSize="13" Margin="0,2,0,4"/>
-                                                <Button Content="Delete" Click="OnDeleteComment"
-                                                        Tag="{Binding CommentId}"
-                                                        Background="#C0392B" Foreground="White"
-                                                        Padding="8,3" BorderThickness="0"
-                                                        Cursor="Hand" FontSize="11"
-                                                        HorizontalAlignment="Left"/>
+
+                                                <!-- Comment READ view -->
+                                                <StackPanel Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
+                                                    <TextBlock Text="{Binding Body}" TextWrapping="Wrap"
+                                                               FontSize="13" Margin="0,2,0,4"/>
+
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <StackPanel.Visibility>
+                                                            <MultiBinding Converter="{StaticResource OwnerToVisibility}">
+                                                                <Binding Path="AuthorId"/>
+                                                                <Binding Path="DataContext.ActiveUser.UserId"
+                                                                         RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                                            </MultiBinding>
+                                                        </StackPanel.Visibility>
+
+                                                        <Button Content="Edit"
+                                                                Command="{Binding DataContext.StartEditCommentCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding}"
+                                                                Background="#3B3F8C" Foreground="White"
+                                                                Padding="8,3" BorderThickness="0"
+                                                                Cursor="Hand" FontSize="11" Margin="0,0,6,0"/>
+                                                        <Button Content="Delete" Click="OnDeleteComment"
+                                                                Tag="{Binding CommentId}"
+                                                                Background="#C0392B" Foreground="White"
+                                                                Padding="8,3" BorderThickness="0"
+                                                                Cursor="Hand" FontSize="11"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+
+                                                <!-- Comment EDIT view -->
+                                                <StackPanel Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibility}}"
+                                                            Margin="0,4,0,0">
+                                                    <TextBox Text="{Binding EditDraft, UpdateSourceTrigger=PropertyChanged}"
+                                                             Padding="6,4" BorderBrush="#CCCCCC" BorderThickness="1"
+                                                             AcceptsReturn="True" TextWrapping="Wrap"
+                                                             MinHeight="50" FontSize="13" Margin="0,0,0,6"/>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Button Content="Save"
+                                                                Command="{Binding DataContext.SaveEditCommentCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding}"
+                                                                Background="#3B3F8C" Foreground="White"
+                                                                Padding="8,3" BorderThickness="0"
+                                                                Cursor="Hand" FontSize="11" Margin="0,0,6,0"/>
+                                                        <Button Content="Cancel"
+                                                                Command="{Binding DataContext.CancelEditCommentCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding}"
+                                                                Background="#888888" Foreground="White"
+                                                                Padding="8,3" BorderThickness="0"
+                                                                Cursor="Hand" FontSize="11"/>
+                                                    </StackPanel>
+                                                </StackPanel>
                                             </StackPanel>
                                         </Border>
                                     </DataTemplate>

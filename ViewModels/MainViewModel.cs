@@ -22,8 +22,14 @@ namespace CreativeWrites.ViewModels
         // ── Backing fields ───────────────────────────────────────────────────────
         private User? _activeUser;
         private Story? _selectedStory;
-        private Genre? _selectedGenreFilter;
+        private GenreFilter? _selectedGenreFilter;
         private string _searchText = string.Empty;
+
+        // Story inline-edit state
+        private bool _isEditingStory;
+        private string _editTitleDraft = string.Empty;
+        private string _editBodyDraft = string.Empty;
+        private Genre _editGenreDraft = Genre.Fantasy;
 
         // ── Collections ──────────────────────────────────────────────────────────
 
@@ -33,15 +39,27 @@ namespace CreativeWrites.ViewModels
         /// <summary>Filtered view shown in the main feed.</summary>
         public ObservableCollection<Story> FeedStories { get; } = new();
 
-        public IEnumerable<Genre?> GenreFilters { get; } =
-            new Genre?[] { null }.Concat(Enum.GetValues<Genre>().Cast<Genre?>());
+        public IReadOnlyList<GenreFilter> GenreFilters { get; } = BuildGenreFilters();
+
+        private static IReadOnlyList<GenreFilter> BuildGenreFilters()
+        {
+            var list = new List<GenreFilter> { new GenreFilter("All Genres", null) };
+            foreach (Genre g in Enum.GetValues<Genre>())
+                list.Add(new GenreFilter(g.ToString(), g));
+            return list;
+        }
 
         // ── Properties ───────────────────────────────────────────────────────────
 
         public User? ActiveUser
         {
             get => _activeUser;
-            set { SetField(ref _activeUser, value); OnPropertyChanged(nameof(IsLoggedIn)); }
+            set
+            {
+                SetField(ref _activeUser, value);
+                OnPropertyChanged(nameof(IsLoggedIn));
+                OnPropertyChanged(nameof(HasLikedSelectedStory));
+            }
         }
 
         public bool IsLoggedIn => ActiveUser != null;
@@ -49,10 +67,42 @@ namespace CreativeWrites.ViewModels
         public Story? SelectedStory
         {
             get => _selectedStory;
-            set => SetField(ref _selectedStory, value);
+            set
+            {
+                if (SetField(ref _selectedStory, value))
+                    IsEditingStory = false;
+                OnPropertyChanged(nameof(HasLikedSelectedStory));
+            }
         }
 
-        public Genre? SelectedGenreFilter
+        public bool HasLikedSelectedStory =>
+            SelectedStory != null && HasLiked(SelectedStory);
+
+        public bool IsEditingStory
+        {
+            get => _isEditingStory;
+            set => SetField(ref _isEditingStory, value);
+        }
+
+        public string EditTitleDraft
+        {
+            get => _editTitleDraft;
+            set => SetField(ref _editTitleDraft, value);
+        }
+
+        public string EditBodyDraft
+        {
+            get => _editBodyDraft;
+            set => SetField(ref _editBodyDraft, value);
+        }
+
+        public Genre EditGenreDraft
+        {
+            get => _editGenreDraft;
+            set => SetField(ref _editGenreDraft, value);
+        }
+
+        public GenreFilter? SelectedGenreFilter
         {
             get => _selectedGenreFilter;
             set { SetField(ref _selectedGenreFilter, value); ApplyFilter(); }
@@ -77,6 +127,14 @@ namespace CreativeWrites.ViewModels
         public ICommand SaveDataCommand { get; }
         public ICommand ClearFilterCommand { get; }
 
+        // Inline-edit flow commands (story + comments)
+        public ICommand StartEditStoryCommand { get; }
+        public ICommand SaveEditStoryCommand { get; }
+        public ICommand CancelEditStoryCommand { get; }
+        public ICommand StartEditCommentCommand { get; }
+        public ICommand SaveEditCommentCommand { get; }
+        public ICommand CancelEditCommentCommand { get; }
+
         // ── Constructor ──────────────────────────────────────────────────────────
 
         public MainViewModel()
@@ -90,7 +148,16 @@ namespace CreativeWrites.ViewModels
             DeleteCommentCommand = new RelayCommand<CommentDeleteArgs>(DeleteComment);
             EditCommentCommand  = new RelayCommand<CommentEditArgs>(EditComment);
             SaveDataCommand     = new RelayCommand(SaveData);
-            ClearFilterCommand  = new RelayCommand(() => { SelectedGenreFilter = null; SearchText = string.Empty; });
+            ClearFilterCommand  = new RelayCommand(() => { SelectedGenreFilter = GenreFilters[0]; SearchText = string.Empty; });
+
+            SelectedGenreFilter = GenreFilters[0];
+
+            StartEditStoryCommand   = new RelayCommand(StartEditStory, () => CanEditStory(SelectedStory));
+            SaveEditStoryCommand    = new RelayCommand(SaveEditStory, () => IsEditingStory && CanEditStory(SelectedStory));
+            CancelEditStoryCommand  = new RelayCommand(() => IsEditingStory = false);
+            StartEditCommentCommand  = new RelayCommand<Comment>(StartEditComment);
+            SaveEditCommentCommand   = new RelayCommand<Comment>(SaveEditComment);
+            CancelEditCommentCommand = new RelayCommand<Comment>(CancelEditComment);
 
             LoadData();
         }
@@ -181,6 +248,28 @@ namespace CreativeWrites.ViewModels
         private bool CanEditStory(Story? story) =>
             story != null && ActiveUser != null && story.AuthorId == ActiveUser.UserId;
 
+        private void StartEditStory()
+        {
+            if (SelectedStory == null || !CanEditStory(SelectedStory)) return;
+            EditTitleDraft = SelectedStory.Title;
+            EditBodyDraft  = SelectedStory.Body;
+            EditGenreDraft = SelectedStory.Genre;
+            IsEditingStory = true;
+        }
+
+        private void SaveEditStory()
+        {
+            if (SelectedStory == null || !CanEditStory(SelectedStory)) return;
+            EditStory(new StoryEditArgs
+            {
+                Story    = SelectedStory,
+                NewTitle = EditTitleDraft,
+                NewBody  = EditBodyDraft,
+                NewGenre = EditGenreDraft
+            });
+            IsEditingStory = false;
+        }
+
         // ── Likes ────────────────────────────────────────────────────────────────
 
         private void ToggleLike(Story? story)
@@ -197,6 +286,7 @@ namespace CreativeWrites.ViewModels
                 ActiveUser.LikedStoryIds.Add(story.StoryId);
                 story.IncrementLike();
             }
+            OnPropertyChanged(nameof(HasLikedSelectedStory));
             SaveData();
         }
 
@@ -230,6 +320,31 @@ namespace CreativeWrites.ViewModels
             if (edited) SaveData();
         }
 
+        private void StartEditComment(Comment? comment)
+        {
+            if (comment == null) return;
+            comment.EditDraft = comment.Body;
+            comment.IsEditing = true;
+        }
+
+        private void SaveEditComment(Comment? comment)
+        {
+            if (comment == null || SelectedStory == null) return;
+            EditComment(new CommentEditArgs
+            {
+                Story     = SelectedStory,
+                CommentId = comment.CommentId,
+                NewBody   = comment.EditDraft
+            });
+            comment.IsEditing = false;
+        }
+
+        private void CancelEditComment(Comment? comment)
+        {
+            if (comment == null) return;
+            comment.IsEditing = false;
+        }
+
         // ── Filtering ────────────────────────────────────────────────────────────
 
         private void ApplyFilter()
@@ -238,8 +353,8 @@ namespace CreativeWrites.ViewModels
 
             var filtered = AllStories.AsEnumerable();
 
-            if (SelectedGenreFilter.HasValue)
-                filtered = filtered.Where(s => s.Genre == SelectedGenreFilter.Value);
+            if (SelectedGenreFilter?.Value is { } genre)
+                filtered = filtered.Where(s => s.Genre == genre);
 
             if (!string.IsNullOrWhiteSpace(SearchText))
                 filtered = filtered.Where(s =>
@@ -252,6 +367,13 @@ namespace CreativeWrites.ViewModels
     }
 
     // ── Argument DTOs ────────────────────────────────────────────────────────────
+
+    public class GenreFilter
+    {
+        public string Name { get; }
+        public Genre? Value { get; }
+        public GenreFilter(string name, Genre? value) { Name = name; Value = value; }
+    }
 
     public class StoryDraft
     {
