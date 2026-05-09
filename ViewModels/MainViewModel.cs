@@ -31,6 +31,11 @@ namespace CreativeWrites.ViewModels
         private string _editBodyDraft = string.Empty;
         private Genre _editGenreDraft = Genre.Fantasy;
 
+        // Write-panel state (new story composer)
+        private string _writeTitle = string.Empty;
+        private string _writeBody = string.Empty;
+        private Genre? _writeGenre;
+
         // ── Collections ──────────────────────────────────────────────────────────
 
         public ObservableCollection<User> Users { get; } = new();
@@ -59,6 +64,10 @@ namespace CreativeWrites.ViewModels
                 SetField(ref _activeUser, value);
                 OnPropertyChanged(nameof(IsLoggedIn));
                 OnPropertyChanged(nameof(HasLikedSelectedStory));
+                IsEditingStory = false;
+                foreach (var story in AllStories)
+                    foreach (var c in story.Comments)
+                        if (c.IsEditing) c.IsEditing = false;
             }
         }
 
@@ -70,7 +79,12 @@ namespace CreativeWrites.ViewModels
             set
             {
                 if (SetField(ref _selectedStory, value))
+                {
                     IsEditingStory = false;
+                    foreach (var story in AllStories)
+                        foreach (var c in story.Comments)
+                            if (c.IsEditing) c.IsEditing = false;
+                }
                 OnPropertyChanged(nameof(HasLikedSelectedStory));
             }
         }
@@ -100,6 +114,24 @@ namespace CreativeWrites.ViewModels
         {
             get => _editGenreDraft;
             set => SetField(ref _editGenreDraft, value);
+        }
+
+        public string WriteTitle
+        {
+            get => _writeTitle;
+            set => SetField(ref _writeTitle, value);
+        }
+
+        public string WriteBody
+        {
+            get => _writeBody;
+            set => SetField(ref _writeBody, value);
+        }
+
+        public Genre? WriteGenre
+        {
+            get => _writeGenre;
+            set => SetField(ref _writeGenre, value);
         }
 
         public GenreFilter? SelectedGenreFilter
@@ -140,7 +172,11 @@ namespace CreativeWrites.ViewModels
         public MainViewModel()
         {
             SwitchUserCommand   = new RelayCommand<User>(SwitchUser);
-            PublishStoryCommand = new RelayCommand<StoryDraft>(PublishStory, d => IsLoggedIn && d != null);
+            PublishStoryCommand = new RelayCommand(PublishStory, () =>
+                IsLoggedIn
+                && !string.IsNullOrWhiteSpace(WriteTitle)
+                && !string.IsNullOrWhiteSpace(WriteBody)
+                && WriteGenre.HasValue);
             DeleteStoryCommand  = new RelayCommand<Story>(DeleteStory, s => CanEditStory(s));
             EditStoryCommand    = new RelayCommand<StoryEditArgs>(EditStory, a => CanEditStory(a?.Story));
             LikeStoryCommand    = new RelayCommand<Story>(ToggleLike, s => IsLoggedIn && s != null);
@@ -214,14 +250,19 @@ namespace CreativeWrites.ViewModels
 
         // ── Story management ─────────────────────────────────────────────────────
 
-        private void PublishStory(StoryDraft? draft)
+        private void PublishStory()
         {
-            if (draft == null || ActiveUser == null) return;
+            if (ActiveUser == null || WriteGenre is not { } genre) return;
+            if (string.IsNullOrWhiteSpace(WriteTitle) || string.IsNullOrWhiteSpace(WriteBody)) return;
 
-            var story = new Story(ActiveUser, draft.Title, draft.Body, draft.Genre);
+            var story = new Story(ActiveUser, WriteTitle.Trim(), WriteBody.Trim(), genre);
             AllStories.Insert(0, story); // newest first
             ApplyFilter();
             SaveData();
+
+            WriteTitle = string.Empty;
+            WriteBody = string.Empty;
+            WriteGenre = null;
         }
 
         private void DeleteStory(Story? story)
@@ -373,13 +414,6 @@ namespace CreativeWrites.ViewModels
         public string Name { get; }
         public Genre? Value { get; }
         public GenreFilter(string name, Genre? value) { Name = name; Value = value; }
-    }
-
-    public class StoryDraft
-    {
-        public string Title { get; set; } = string.Empty;
-        public string Body { get; set; } = string.Empty;
-        public Genre Genre { get; set; } = Genre.Fantasy;
     }
 
     public class StoryEditArgs

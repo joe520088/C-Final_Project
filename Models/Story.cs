@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Newtonsoft.Json;
 
 namespace CreativeWrites.Models
 {
@@ -41,8 +42,19 @@ namespace CreativeWrites.Models
         public DateTime LastEditedAt
         {
             get => _lastEditedAt;
-            set { if (_lastEditedAt != value) { _lastEditedAt = value; OnPropertyChanged(); } }
+            set
+            {
+                if (_lastEditedAt != value)
+                {
+                    _lastEditedAt = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsEdited));
+                }
+            }
         }
+
+        [JsonIgnore]
+        public bool IsEdited => LastEditedAt > PublishedAt;
 
         public int LikeCount
         {
@@ -61,6 +73,7 @@ namespace CreativeWrites.Models
             Title = title;
             Body = body;
             Genre = genre;
+            LastEditedAt = PublishedAt;
         }
 
         // --- Events ---

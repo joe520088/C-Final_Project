@@ -9,6 +9,7 @@ namespace CreativeWrites.Models
         SciFi,
         Thriller,
         Adventure,
-        Drama
+        Drama,
+        Other
     }
 }

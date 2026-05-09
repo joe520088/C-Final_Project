@@ -9,6 +9,7 @@
 
     <Window.Resources>
         <conv:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+        <conv:NullToVisibilityConverter x:Key="NullToVisibility"/>
         <conv:EqualityToVisibilityMultiConverter x:Key="OwnerToVisibility"/>
     </Window.Resources>
 
@@ -93,7 +94,42 @@
                            Foreground="#3B3F8C" Margin="0,0,0,12"/>
 
                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding FeedStories}">
+                    <StackPanel>
+
+                        <TextBlock Text="No stories yet — be the first to publish one"
+                                   Foreground="#888888" FontSize="13" FontStyle="Italic"
+                                   Margin="0,16,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding AllStories.Count}" Value="0">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                        <TextBlock Text="No stories match your filter — try clearing it"
+                                   Foreground="#888888" FontSize="13" FontStyle="Italic"
+                                   Margin="0,16,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding FeedStories.Count}" Value="0">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding AllStories.Count}" Value="0">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                        <ItemsControl ItemsSource="{Binding FeedStories}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <Border Background="White" CornerRadius="6" Padding="14"
@@ -103,13 +139,30 @@
                                     <StackPanel>
                                         <TextBlock Text="{Binding Title}" FontSize="16"
                                                    FontWeight="SemiBold" TextWrapping="Wrap"/>
-                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,6">
+                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,2">
                                             <TextBlock Text="{Binding AuthorName}"
                                                        Foreground="#888888" FontSize="12"/>
                                             <TextBlock Text=" · " Foreground="#888888" FontSize="12"/>
                                             <TextBlock Text="{Binding Genre}"
                                                        Foreground="#E8865A" FontSize="12" FontWeight="SemiBold"/>
+                                            <TextBlock Text=" · " Foreground="#888888" FontSize="12"/>
+                                            <TextBlock Text="{Binding PublishedAt, StringFormat='MMM d, yyyy h:mm tt'}"
+                                                       Foreground="#888888" FontSize="12"/>
                                         </StackPanel>
+                                        <TextBlock Text="{Binding LastEditedAt, StringFormat='Edited {0:MMM d, yyyy h:mm tt}'}"
+                                                   Foreground="#AAAAAA" FontSize="11" FontStyle="Italic"
+                                                   Margin="0,0,0,6">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsEdited}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                         <TextBlock Text="{Binding Body}" TextWrapping="Wrap"
                                                    MaxHeight="60" Foreground="#555555" FontSize="13"
                                                    TextTrimming="CharacterEllipsis"/>
@@ -125,6 +178,8 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+
+                    </StackPanel>
                 </ScrollViewer>
             </Grid>
         </Border>
@@ -174,22 +229,28 @@
                                        Foreground="#3B3F8C" Margin="0,0,0,12"/>
 
                             <TextBlock Text="Title" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                            <TextBox x:Name="StoryTitleBox" Padding="8,5"
-                                     BorderBrush="#CCCCCC" BorderThickness="1"
+                            <TextBox Text="{Binding WriteTitle, UpdateSourceTrigger=PropertyChanged}"
+                                     Padding="8,5" BorderBrush="#CCCCCC" BorderThickness="1"
                                      FontSize="13" Margin="0,0,0,10"/>
 
                             <TextBlock Text="Genre" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                            <ComboBox x:Name="StoryGenreBox" Margin="0,0,0,10"
-                                      ItemsSource="{Binding Source={x:Static models:GenreValues.All}}"/>
+                            <Grid Margin="0,0,0,10">
+                                <ComboBox ItemsSource="{Binding Source={x:Static models:GenreValues.All}}"
+                                          SelectedItem="{Binding WriteGenre}"/>
+                                <TextBlock Text="Select a genre…" IsHitTestVisible="False"
+                                           VerticalAlignment="Center" Margin="8,0,0,0"
+                                           Foreground="#888888" FontStyle="Italic"
+                                           Visibility="{Binding WriteGenre, Converter={StaticResource NullToVisibility}, ConverterParameter=Invert}"/>
+                            </Grid>
 
                             <TextBlock Text="Body" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                            <TextBox x:Name="StoryBodyBox" Padding="8,5"
-                                     BorderBrush="#CCCCCC" BorderThickness="1"
+                            <TextBox Text="{Binding WriteBody, UpdateSourceTrigger=PropertyChanged}"
+                                     Padding="8,5" BorderBrush="#CCCCCC" BorderThickness="1"
                                      AcceptsReturn="True" TextWrapping="Wrap"
                                      MinHeight="180" VerticalScrollBarVisibility="Auto"
                                      FontSize="13" Margin="0,0,0,12"/>
 
-                            <Button Content="Publish Story" Click="OnPublishStory"
+                            <Button Content="Publish Story" Command="{Binding PublishStoryCommand}"
                                     Background="#3B3F8C" Foreground="White" Padding="12,6"
                                     BorderThickness="0" Cursor="Hand" HorizontalAlignment="Left"/>
                         </StackPanel>
@@ -235,13 +296,31 @@
                                 <TextBlock Text="{Binding SelectedStory.Title}" FontSize="17"
                                            FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,6"/>
 
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                     <TextBlock Text="{Binding SelectedStory.AuthorName}"
                                                Foreground="#888888" FontSize="12"/>
                                     <TextBlock Text=" · " Foreground="#888888" FontSize="12"/>
                                     <TextBlock Text="{Binding SelectedStory.Genre}"
                                                Foreground="#E8865A" FontSize="12" FontWeight="SemiBold"/>
                                 </StackPanel>
+
+                                <TextBlock Text="{Binding SelectedStory.PublishedAt, StringFormat='Posted {0:MMM d, yyyy h:mm tt}'}"
+                                           Foreground="#888888" FontSize="11" Margin="0,0,0,2"/>
+
+                                <TextBlock Text="{Binding SelectedStory.LastEditedAt, StringFormat='Edited {0:MMM d, yyyy h:mm tt}'}"
+                                           Foreground="#AAAAAA" FontSize="11" FontStyle="Italic"
+                                           Margin="0,0,0,10">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedStory.IsEdited}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
 
                                 <TextBlock Text="{Binding SelectedStory.Body}" TextWrapping="Wrap"
                                            FontSize="13" Foreground="#333333" Margin="0,0,0,12"/>
@@ -330,8 +409,13 @@
                                                 Background="#F9F9F9" CornerRadius="4"
                                                 BorderBrush="#EEEEEE" BorderThickness="1">
                                             <StackPanel>
-                                                <TextBlock Text="{Binding AuthorName}"
-                                                           FontWeight="SemiBold" FontSize="12"/>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding AuthorName}"
+                                                               FontWeight="SemiBold" FontSize="12"/>
+                                                    <TextBlock Text=" · " Foreground="#888888" FontSize="12"/>
+                                                    <TextBlock Text="{Binding PostedAt, StringFormat='MMM d, yyyy h:mm tt'}"
+                                                               Foreground="#888888" FontSize="12"/>
+                                                </StackPanel>
 
                                                 <!-- Comment READ view -->
                                                 <StackPanel Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">

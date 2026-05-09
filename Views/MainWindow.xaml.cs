@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -14,8 +15,16 @@ namespace CreativeWrites.Views
         {
             InitializeComponent();
 
+            VM.PropertyChanged += OnVMPropertyChanged;
+
             // Auto-save when window closes
             Closing += (_, _) => VM.SaveData();
+        }
+
+        private void OnVMPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(MainViewModel.SelectedStory))
+                CommentBox.Text = string.Empty;
         }
 
         // ── Panel toggle ─────────────────────────────────────────────────────────
@@ -41,34 +50,6 @@ namespace CreativeWrites.Views
                 VM.SelectedStory = story;
                 OnShowDetailPanel(sender, e); // switch to detail panel
             }
-        }
-
-        // ── Publish ──────────────────────────────────────────────────────────────
-
-        private void OnPublishStory(object sender, RoutedEventArgs e)
-        {
-            string title = StoryTitleBox.Text.Trim();
-            string body  = StoryBodyBox.Text.Trim();
-
-            if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(body))
-            {
-                MessageBox.Show("Please fill in both a title and body.", "Missing Fields",
-                                MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            var genre = StoryGenreBox.SelectedItem is Genre g ? g : Genre.Fantasy;
-
-            VM.PublishStoryCommand.Execute(new StoryDraft
-            {
-                Title = title,
-                Body  = body,
-                Genre = genre
-            });
-
-            // Clear form
-            StoryTitleBox.Text = string.Empty;
-            StoryBodyBox.Text  = string.Empty;
         }
 
         // ── Like ─────────────────────────────────────────────────────────────────
