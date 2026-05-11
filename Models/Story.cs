@@ -14,6 +14,8 @@ namespace CreativeWrites.Models
         private string _body = string.Empty;
         private Genre _genre = Genre.Fantasy;
         private DateTime _lastEditedAt = DateTime.Now;
+        private int? _aiScore;
+        private bool _isScanning;
 
         public string StoryId { get; set; } = Guid.NewGuid().ToString();
         public string AuthorId { get; set; } = string.Empty;
@@ -55,6 +57,36 @@ namespace CreativeWrites.Models
 
         [JsonIgnore]
         public bool IsEdited => LastEditedAt > PublishedAt;
+
+        public int? AiScore
+        {
+            get => _aiScore;
+            set
+            {
+                if (_aiScore != value)
+                {
+                    _aiScore = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(AiVerdict));
+                }
+            }
+        }
+
+        [JsonIgnore]
+        public string AiVerdict => AiScore switch
+        {
+            null => string.Empty,
+            <= 30 => "Looks human",
+            <= 60 => "Possibly AI-assisted",
+            _ => "Likely AI-written"
+        };
+
+        [JsonIgnore]
+        public bool IsScanning
+        {
+            get => _isScanning;
+            set { if (_isScanning != value) { _isScanning = value; OnPropertyChanged(); } }
+        }
 
         public int LikeCount
         {

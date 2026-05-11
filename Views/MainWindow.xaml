@@ -18,6 +18,17 @@
     </Window.DataContext>
 
     <Grid>
+    <Grid>
+        <Grid.Style>
+            <Style TargetType="Grid">
+                <Setter Property="Visibility" Value="Collapsed"/>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding CurrentView}" Value="{x:Static vm:AppView.Feed}">
+                        <Setter Property="Visibility" Value="Visible"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Grid.Style>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="220"/>
             <ColumnDefinition Width="*"/>
@@ -33,7 +44,13 @@
 
                 <TextBlock Text="Active User" Foreground="#AAAACC" FontSize="11" Margin="0,0,0,4"/>
                 <TextBlock Text="{Binding ActiveUser.Username, FallbackValue='None'}"
-                           Foreground="White" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,16"/>
+                           Foreground="White" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8"/>
+
+                <Button Content="My Profile" Command="{Binding MyProfileCommand}"
+                        Background="#5559AA" Foreground="White" Padding="10,5"
+                        BorderThickness="0" Cursor="Hand" Margin="0,0,0,16"
+                        HorizontalAlignment="Left"
+                        Visibility="{Binding IsLoggedIn, Converter={StaticResource BoolToVisibility}}"/>
 
                 <TextBlock Text="Switch User" Foreground="#AAAACC" FontSize="11" Margin="0,0,0,6"/>
                 <ListBox ItemsSource="{Binding Users}"
@@ -140,8 +157,10 @@
                                         <TextBlock Text="{Binding Title}" FontSize="16"
                                                    FontWeight="SemiBold" TextWrapping="Wrap"/>
                                         <StackPanel Orientation="Horizontal" Margin="0,4,0,2">
-                                            <TextBlock Text="{Binding AuthorName}"
-                                                       Foreground="#888888" FontSize="12"/>
+                                            <TextBlock Text="{Binding AuthorName}" Cursor="Hand"
+                                                       MouseLeftButtonUp="OnAuthorClicked"
+                                                       Foreground="#888888" FontSize="12"
+                                                       TextDecorations="Underline"/>
                                             <TextBlock Text=" · " Foreground="#888888" FontSize="12"/>
                                             <TextBlock Text="{Binding Genre}"
                                                        Foreground="#E8865A" FontSize="12" FontWeight="SemiBold"/>
@@ -297,8 +316,10 @@
                                            FontWeight="Bold" TextWrapping="Wrap" Margin="0,0,0,6"/>
 
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                    <TextBlock Text="{Binding SelectedStory.AuthorName}"
-                                               Foreground="#888888" FontSize="12"/>
+                                    <TextBlock Text="{Binding SelectedStory.AuthorName}" Cursor="Hand"
+                                               MouseLeftButtonUp="OnAuthorClicked"
+                                               Foreground="#888888" FontSize="12"
+                                               TextDecorations="Underline"/>
                                     <TextBlock Text=" · " Foreground="#888888" FontSize="12"/>
                                     <TextBlock Text="{Binding SelectedStory.Genre}"
                                                Foreground="#E8865A" FontSize="12" FontWeight="SemiBold"/>
@@ -364,6 +385,76 @@
                                         </Button.Visibility>
                                     </Button>
                                 </StackPanel>
+
+                                <!-- ── AI Likeness scan ── -->
+                                <Border Background="#F9F9F9" CornerRadius="6" Padding="14" Margin="0,0,0,16"
+                                        BorderBrush="#E0E0E0" BorderThickness="1">
+                                    <StackPanel>
+                                        <TextBlock Text="AI Likeness" FontWeight="Bold" FontSize="13"
+                                                   Foreground="#3B3F8C" Margin="0,0,0,8"/>
+
+                                        <!-- Idle: not scanned, not scanning -->
+                                        <StackPanel>
+                                            <StackPanel.Style>
+                                                <Style TargetType="StackPanel">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <MultiDataTrigger>
+                                                            <MultiDataTrigger.Conditions>
+                                                                <Condition Binding="{Binding SelectedStory.AiScore}" Value="{x:Null}"/>
+                                                                <Condition Binding="{Binding SelectedStory.IsScanning}" Value="False"/>
+                                                            </MultiDataTrigger.Conditions>
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </MultiDataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </StackPanel.Style>
+                                            <TextBlock Text="Not yet scanned" Foreground="#888888"
+                                                       FontStyle="Italic" Margin="0,0,0,8"/>
+                                            <Button Content="Scan for AI" Command="{Binding ScanForAiCommand}"
+                                                    Background="#3B3F8C" Foreground="White" Padding="10,5"
+                                                    BorderThickness="0" Cursor="Hand"
+                                                    HorizontalAlignment="Left"/>
+                                        </StackPanel>
+
+                                        <!-- Scanning -->
+                                        <StackPanel Visibility="{Binding SelectedStory.IsScanning, Converter={StaticResource BoolToVisibility}}">
+                                            <TextBlock Text="Scanning…" Foreground="#3B3F8C"
+                                                       FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                            <ProgressBar IsIndeterminate="True" Height="8"/>
+                                        </StackPanel>
+
+                                        <!-- Scored: has score, not scanning -->
+                                        <StackPanel>
+                                            <StackPanel.Style>
+                                                <Style TargetType="StackPanel">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding SelectedStory.IsScanning}" Value="False">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding SelectedStory.AiScore}" Value="{x:Null}">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </StackPanel.Style>
+                                            <TextBlock Margin="0,0,0,4">
+                                                <Run Text="AI Likeness: " FontSize="14"/>
+                                                <Run Text="{Binding SelectedStory.AiScore, Mode=OneWay}"
+                                                     FontSize="22" FontWeight="Bold" Foreground="#3B3F8C"/>
+                                                <Run Text="%" FontSize="14"/>
+                                            </TextBlock>
+                                            <TextBlock Text="{Binding SelectedStory.AiVerdict}"
+                                                       Foreground="#888888" FontStyle="Italic"
+                                                       Margin="0,0,0,8"/>
+                                            <Button Content="Re-scan" Command="{Binding ScanForAiCommand}"
+                                                    Background="#888888" Foreground="White" Padding="10,5"
+                                                    BorderThickness="0" Cursor="Hand"
+                                                    HorizontalAlignment="Left"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
 
                             <!-- ── Story EDIT view ── -->
@@ -410,8 +501,10 @@
                                                 BorderBrush="#EEEEEE" BorderThickness="1">
                                             <StackPanel>
                                                 <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Text="{Binding AuthorName}"
-                                                               FontWeight="SemiBold" FontSize="12"/>
+                                                    <TextBlock Text="{Binding AuthorName}" Cursor="Hand"
+                                                               MouseLeftButtonUp="OnAuthorClicked"
+                                                               FontWeight="SemiBold" FontSize="12"
+                                                               TextDecorations="Underline"/>
                                                     <TextBlock Text=" · " Foreground="#888888" FontSize="12"/>
                                                     <TextBlock Text="{Binding PostedAt, StringFormat='MMM d, yyyy h:mm tt'}"
                                                                Foreground="#888888" FontSize="12"/>
@@ -489,5 +582,137 @@
 
             </Grid>
         </Border>
+    </Grid>
+
+    <!-- ══ PROFILE VIEW ══════════════════════════════════════════════ -->
+    <Grid Background="#F5F4F0">
+        <Grid.Style>
+            <Style TargetType="Grid">
+                <Setter Property="Visibility" Value="Collapsed"/>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding CurrentView}" Value="{x:Static vm:AppView.Profile}">
+                        <Setter Property="Visibility" Value="Visible"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Grid.Style>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="40,32,40,40" MaxWidth="800" HorizontalAlignment="Center">
+
+                <Button Content="← Back to Feed" Command="{Binding BackToFeedCommand}"
+                        Background="#888888" Foreground="White" Padding="10,5"
+                        BorderThickness="0" Cursor="Hand"
+                        HorizontalAlignment="Left" Margin="0,0,0,24"/>
+
+                <TextBlock Text="{Binding ProfileUser.Username}" FontSize="32"
+                           FontWeight="Bold" Foreground="#3B3F8C"/>
+
+                <TextBlock Text="{Binding ProfileJoinedDisplay}"
+                           Foreground="#888888" FontSize="13" Margin="0,2,0,16"/>
+
+                <TextBlock Text="{Binding ProfileUser.Bio}" TextWrapping="Wrap"
+                           FontSize="14" Foreground="#333333" Margin="0,0,0,24"/>
+
+                <!-- Stats row -->
+                <Grid Margin="0,0,0,32">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition/>
+                        <ColumnDefinition Width="12"/>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Background="White" CornerRadius="6" Padding="20"
+                            BorderBrush="#E0E0E0" BorderThickness="1">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock Text="{Binding ProfileStoryCount}" FontSize="32"
+                                       FontWeight="Bold" Foreground="#3B3F8C"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Text="Stories" Foreground="#888888"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="2" Background="White" CornerRadius="6" Padding="20"
+                            BorderBrush="#E0E0E0" BorderThickness="1">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock Text="{Binding ProfileTotalLikes}" FontSize="32"
+                                       FontWeight="Bold" Foreground="#E8865A"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Text="Likes received" Foreground="#888888"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="4" Background="White" CornerRadius="6" Padding="20"
+                            BorderBrush="#E0E0E0" BorderThickness="1">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock Text="{Binding ProfileAverageAiDisplay}" FontSize="32"
+                                       FontWeight="Bold" Foreground="#3B3F8C"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Text="Avg AI score" Foreground="#888888"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <TextBlock Text="Stories" FontSize="20" FontWeight="Bold"
+                           Foreground="#3B3F8C" Margin="0,0,0,12"/>
+
+                <TextBlock Text="No stories yet" Foreground="#888888"
+                           FontStyle="Italic" Margin="0,8,0,0">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ProfileStoryCount}" Value="0">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
+                <ItemsControl ItemsSource="{Binding ProfileUserStories}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="White" CornerRadius="6" Padding="14"
+                                    Margin="0,0,0,10" Cursor="Hand"
+                                    BorderBrush="#E0E0E0" BorderThickness="1">
+                                <Border.InputBindings>
+                                    <MouseBinding MouseAction="LeftClick"
+                                                  Command="{Binding DataContext.OpenProfileStoryCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                  CommandParameter="{Binding}"/>
+                                </Border.InputBindings>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Title}" FontSize="16"
+                                               FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                        <TextBlock Text="{Binding Genre}"
+                                                   Foreground="#E8865A" FontSize="12"
+                                                   FontWeight="SemiBold"/>
+                                        <TextBlock Text=" · " Foreground="#888888" FontSize="12"/>
+                                        <TextBlock Text="{Binding PublishedAt, StringFormat='MMM d, yyyy'}"
+                                                   Foreground="#888888" FontSize="12"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                        <TextBlock Text="♥ " Foreground="#E8865A"/>
+                                        <TextBlock Text="{Binding LikeCount}" Foreground="#888888"/>
+                                        <TextBlock Text=" · " Foreground="#888888" FontSize="12"/>
+                                        <TextBlock Text="{Binding Comments.Count, StringFormat='{}{0} comments'}"
+                                                   Foreground="#888888" FontSize="12"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+
     </Grid>
 </Window>

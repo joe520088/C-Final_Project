@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -24,7 +25,36 @@ namespace CreativeWrites.Views
         private void OnVMPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(MainViewModel.SelectedStory))
+            {
                 CommentBox.Text = string.Empty;
+                if (VM.SelectedStory != null)
+                {
+                    WritePanelScroll.Visibility = Visibility.Collapsed;
+                    DetailPanelScroll.Visibility = Visibility.Visible;
+                }
+            }
+        }
+
+        private void OnAuthorClicked(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not FrameworkElement fe) return;
+
+            string? authorId = fe.DataContext switch
+            {
+                Story s => s.AuthorId,
+                Comment c => c.AuthorId,
+                MainViewModel m => m.SelectedStory?.AuthorId,
+                _ => null
+            };
+
+            if (authorId == null) return;
+
+            var user = VM.Users.FirstOrDefault(u => u.UserId == authorId);
+            if (user != null)
+            {
+                VM.NavigateToProfile(user);
+                e.Handled = true;
+            }
         }
 
         // ── Panel toggle ─────────────────────────────────────────────────────────

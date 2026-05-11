@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows.Input;
+using System.Windows.Threading;
 using CreativeWrites.Models;
 using CreativeWrites.Services;
 
@@ -35,6 +36,10 @@ namespace CreativeWrites.ViewModels
         private string _writeTitle = string.Empty;
         private string _writeBody = string.Empty;
         private Genre? _writeGenre;
+
+        // Navigation
+        private AppView _currentView = AppView.Feed;
+        private User? _profileUser;
 
         // ── Collections ──────────────────────────────────────────────────────────
 
@@ -134,6 +139,48 @@ namespace CreativeWrites.ViewModels
             set => SetField(ref _writeGenre, value);
         }
 
+        public AppView CurrentView
+        {
+            get => _currentView;
+            set => SetField(ref _currentView, value);
+        }
+
+        public User? ProfileUser
+        {
+            get => _profileUser;
+            set
+            {
+                SetField(ref _profileUser, value);
+                OnPropertyChanged(nameof(ProfileUserStories));
+                OnPropertyChanged(nameof(ProfileStoryCount));
+                OnPropertyChanged(nameof(ProfileTotalLikes));
+                OnPropertyChanged(nameof(ProfileAverageAiDisplay));
+                OnPropertyChanged(nameof(ProfileJoinedDisplay));
+            }
+        }
+
+        public IEnumerable<Story> ProfileUserStories =>
+            ProfileUser == null
+                ? Enumerable.Empty<Story>()
+                : AllStories.Where(s => s.AuthorId == ProfileUser.UserId);
+
+        public int ProfileStoryCount => ProfileUserStories.Count();
+        public int ProfileTotalLikes => ProfileUserStories.Sum(s => s.LikeCount);
+
+        public string ProfileAverageAiDisplay
+        {
+            get
+            {
+                var scored = ProfileUserStories.Where(s => s.AiScore.HasValue).ToList();
+                return scored.Count == 0
+                    ? "N/A"
+                    : $"{scored.Average(s => s.AiScore!.Value):F0}%";
+            }
+        }
+
+        public string ProfileJoinedDisplay =>
+            ProfileUser == null ? "" : $"Joined {ProfileUser.CreatedAt:MMM d, yyyy}";
+
         public GenreFilter? SelectedGenreFilter
         {
             get => _selectedGenreFilter;
@@ -167,6 +214,12 @@ namespace CreativeWrites.ViewModels
         public ICommand SaveEditCommentCommand { get; }
         public ICommand CancelEditCommentCommand { get; }
 
+        // AI scan + navigation
+        public ICommand ScanForAiCommand { get; }
+        public ICommand BackToFeedCommand { get; }
+        public ICommand MyProfileCommand { get; }
+        public ICommand OpenProfileStoryCommand { get; }
+
         // ── Constructor ──────────────────────────────────────────────────────────
 
         public MainViewModel()
@@ -194,6 +247,13 @@ namespace CreativeWrites.ViewModels
             StartEditCommentCommand  = new RelayCommand<Comment>(StartEditComment);
             SaveEditCommentCommand   = new RelayCommand<Comment>(SaveEditComment);
             CancelEditCommentCommand = new RelayCommand<Comment>(CancelEditComment);
+
+            ScanForAiCommand        = new RelayCommand(ScanForAi, () => SelectedStory != null);
+            BackToFeedCommand       = new RelayCommand(NavigateToFeed);
+            MyProfileCommand        = new RelayCommand(
+                () => { if (ActiveUser != null) NavigateToProfile(ActiveUser); },
+                () => IsLoggedIn);
+            OpenProfileStoryCommand = new RelayCommand<Story>(OpenStoryFromProfile);
 
             LoadData();
         }
@@ -283,6 +343,7 @@ namespace CreativeWrites.ViewModels
             args.Story.Body = args.NewBody;
             args.Story.Genre = args.NewGenre;
             args.Story.LastEditedAt = DateTime.Now;
+            args.Story.AiScore = null;
             SaveData();
         }
 
@@ -405,6 +466,51 @@ namespace CreativeWrites.ViewModels
             foreach (var story in filtered)
                 FeedStories.Add(story);
         }
+
+        // ── AI scan ──────────────────────────────────────────────────────────────
+
+        private void ScanForAi()
+        {
+            var story = SelectedStory;
+            if (story == null || story.IsScanning) return;
+
+            story.IsScanning = true;
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            timer.Tick += (_, _) =>
+            {
+                timer.Stop();
+                story.AiScore = AiScoreCalculator.Score(story.Body);
+                story.IsScanning = false;
+                SaveData();
+            };
+            timer.Start();
+        }
+
+        // ── Navigation ───────────────────────────────────────────────────────────
+
+        public void NavigateToProfile(User user)
+        {
+            ProfileUser = user;
+            CurrentView = AppView.Profile;
+        }
+
+        public void NavigateToFeed()
+        {
+            CurrentView = AppView.Feed;
+        }
+
+        private void OpenStoryFromProfile(Story? story)
+        {
+            if (story == null) return;
+            SelectedStory = story;
+            NavigateToFeed();
+        }
+    }
+
+    public enum AppView
+    {
+        Feed,
+        Profile
     }
 
     // ── Argument DTOs ────────────────────────────────────────────────────────────
